@@ -70,3 +70,13 @@ select,input[type=search]{width:100%;font:inherit;font-size:16px;padding:10px;bo
 .wordlist .st{font-size:12px;white-space:nowrap;color:var(--sub);text-align:right}
 .wordlist .st.l{color:var(--main2)} .wordlist .st.ms{color:var(--ok)}
 .credits .note{font-size:12px}
+
+.choicewrap{position:relative;margin-top:18px}
+.choicewrap .choices{margin-top:0}
+.sheet-on .choice{color:#d62626;border-color:#f3b4b4}
+.redsheet{position:absolute;inset:-6px;border:0;border-radius:14px;background:rgba(214,38,38,.93);color:#fff;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  transition:transform .3s ease, opacity .3s ease;box-shadow:0 4px 14px rgba(150,20,20,.25)}
+.redsheet span{font-size:18px;font-weight:800;letter-spacing:.1em}
+.redsheet small{font-size:13px;opacity:.95}
+.redsheet.lifted{transform:translateY(60%);opacity:0;pointer-events:none}

@@ -3,7 +3,7 @@
 const INTERVALS = [1, 3, 7, 14, 30];   // 覚えた日からの日数
 const KEY = 'toeic-srs-v1';
 const PAGE = 100;
-const VERSION = 3; // 更新したら index.html の ?v= と合わせて上げる
+const VERSION = 4; // 更新したら index.html の ?v= と合わせて上げる
 
 // ===== 日付 =====
 function dayNum(date = new Date()) {
@@ -17,7 +17,7 @@ function dayLabel(n, withWeek = true) {
 
 // ===== 保存 =====
 function defaultState() {
-  return { v: 1, settings: { dailyNew: 20, startFrom: '基礎', autoThrottle: true }, cards: {}, log: {} };
+  return { v: 1, settings: { dailyNew: 20, startFrom: '基礎', autoThrottle: true, redSheet: true }, cards: {}, log: {} };
 }
 function load() {
   try {
@@ -87,11 +87,15 @@ function streak() {
 }
 
 // 正解・不正解のときの予定更新
-function applyResult(i, correct, t = dayNum()) {
+// 新しい単語・復習の単語とも、正解するまでは「学習済み」にしない（次の予定も決めない）
+function applyResult(i, correct, t = dayNum(), misses = 0) {
   let c = S.cards[i];
-  if (!c) { // 新しい単語：今日覚えた
-    c = S.cards[i] = { s: 0, b: t, due: t + INTERVALS[0], lapses: 0 };
-    if (!correct) c.lapses = 1;
+  if (!c) { // 新しい単語：正解したときに初めて登録
+    if (!correct) return null;
+    return (S.cards[i] = { s: 0, b: t, due: t + INTERVALS[0], lapses: misses });
+  }
+  if (c.p) { // 今日まちがえて、まだ正解していない復習の単語
+    if (correct) { c.due = t + INTERVALS[0]; delete c.p; }
     return c;
   }
   if (correct) {
@@ -102,7 +106,8 @@ function applyResult(i, correct, t = dayNum()) {
     if (due <= t) due = t + gap; // 復習が遅れたときは間隔を保つ
     c.due = due;
   } else {
-    c.s = 0; c.b = t; c.due = t + INTERVALS[0]; c.lapses = (c.lapses || 0) + 1; delete c.m;
+    // 最初からやり直し。正解するまでは今日の復習に残す
+    c.s = 0; c.b = t; c.due = t; c.p = 1; c.lapses = (c.lapses || 0) + 1; delete c.m;
   }
   return c;
 }
@@ -224,9 +229,17 @@ function nextItem() {
     $('choices').appendChild(b);
   });
   $('feedback').classList.add('hidden');
+  setSheet(S.settings.redSheet);
   $('quizCard').classList.remove('hidden');
 }
 function shuffle(a) { for (let k = a.length - 1; k > 0; k--) { const r = Math.floor(Math.random() * (k + 1)); [a[k], a[r]] = [a[r], a[k]]; } return a; }
+// 赤シート：意味を思い浮かべてから、タップでめくって4択を見る
+function setSheet(on) {
+  $('choiceWrap').classList.toggle('sheet-on', !!on);
+  $('redsheet').classList.toggle('lifted', !on);
+  document.querySelectorAll('.choice').forEach(b => { b.tabIndex = on ? -1 : 0; });
+}
+$('redsheet').addEventListener('click', () => setSheet(false));
 function posJa(p) { return { noun: '名詞', verb: '動詞', adj: '形容詞', adv: '副詞' }[p] || p; }
 function answer(j, btn) {
   const correct = j === cur.i;
@@ -237,22 +250,22 @@ function answer(j, btn) {
   });
   if (!correct) btn.classList.add('ng');
 
-  let nextText = '';
-  if (cur.first) {
-    const c = applyResult(cur.i, correct, t);
-    const log = todayLog(t);
-    log.tot++; session.tot++;
-    if (correct) { log.ok1++; session.ok1++; }
+  const log = todayLog(t);
+  if (cur.first) { log.tot++; session.tot++; if (correct) { log.ok1++; session.ok1++; } }
+  if (!correct) cur.misses = (cur.misses || 0) + 1;
+  const c = applyResult(cur.i, correct, t, cur.misses || 0);
+
+  let nextText;
+  if (correct) {
     if (cur.type === 'new') { log.n++; session.newDone++; } else { log.r++; session.revDone++; }
     session.done++;
-    save();
     nextText = c.m ? '30日後の復習まで正解しました。この単語は完全に覚えました。'
-      : `次の復習：${dayLabel(c.due)}（${c.due - t}日後）`;
+      : `学習済みに登録しました。次の復習：${dayLabel(c.due)}（${c.due - t}日後）`;
+  } else {
+    queue.push({ i: cur.i, type: cur.type, first: false, misses: cur.misses });  // 正解するまで今日のうちにもう一度
+    nextText = '正解するまで学習済みには登録しません。このあともう一度出題します。';
   }
-  if (!correct) {
-    queue.push({ i: cur.i, type: cur.type, first: false });  // 正解するまで今日のうちにもう一度
-    nextText = (nextText ? nextText + '。' : '') + 'このあともう一度出題します。';
-  }
+  save();
   $('fbTitle').textContent = correct ? '正解' : `不正解　正解は「${WORDS[cur.i].m}」`;
   $('fbTitle').className = 'fb-title ' + (correct ? 'ok' : 'ng');
   const w = WORDS[cur.i];
@@ -282,6 +295,7 @@ function statusOf(i) {
   const c = S.cards[i];
   if (!c) return { k: 'new', txt: '未学習', cls: '' };
   if (c.m) return { k: 'mastered', txt: '完全に覚えた', cls: 'ms' };
+  if (c.p) return { k: 'learning', txt: '今日やり直し', cls: 'l' };
   return { k: 'learning', txt: `次 ${dayLabel(c.due, false)}`, cls: 'l' };
 }
 function renderList(reset) {
@@ -329,6 +343,7 @@ function renderSettings() {
   sel.value = S.settings.dailyNew;
   $('startFrom').value = S.settings.startFrom;
   $('autoThrottle').checked = S.settings.autoThrottle;
+  $('redSheetSetting').checked = S.settings.redSheet;
   renderEstimate();
 }
 function renderEstimate() {
@@ -341,6 +356,7 @@ function renderEstimate() {
 $('dailyNew').addEventListener('change', e => { S.settings.dailyNew = +e.target.value; save(); renderEstimate(); });
 $('startFrom').addEventListener('change', e => { S.settings.startFrom = e.target.value; save(); });
 $('autoThrottle').addEventListener('change', e => { S.settings.autoThrottle = e.target.checked; save(); });
+$('redSheetSetting').addEventListener('change', e => { S.settings.redSheet = e.target.checked; save(); });
 $('resetBtn').addEventListener('click', () => {
   if (confirm('すべての学習記録を消します。元に戻せません。よろしいですか？')) {
     const keep = S.settings; S = defaultState(); S.settings = keep; save(); show('home');

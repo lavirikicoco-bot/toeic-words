@@ -9,7 +9,7 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 <header class="top">
@@ -60,7 +60,10 @@
     <div class="card qcard hidden" id="quizCard">
       <div class="tag" id="quizTag">復習</div>
       <div class="word" id="quizWord"></div>
-      <div class="choices" id="choices"></div>
+      <div class="choicewrap" id="choiceWrap">
+        <div class="choices" id="choices"></div>
+        <button class="redsheet" id="redsheet" type="button"><span>赤シート</span><small>意味を思い浮かべてから、タップでめくる</small></button>
+      </div>
       <div class="feedback hidden" id="feedback">
         <div class="fb-title" id="fbTitle"></div>
         <div class="detail" id="fbDetail"></div>
@@ -123,8 +126,13 @@
       <p class="note">何日か休んで復習がたまったときに、復習を先に片づけられます。</p>
     </div>
     <div class="card">
+      <h2>赤シート</h2>
+      <label class="check"><input type="checkbox" id="redSheetSetting"> 4択を赤シートで隠してから出題する（標準でオン）</label>
+      <p class="note">先に自分で意味を思い出してから、シートをめくって選びます。</p>
+    </div>
+    <div class="card">
       <h2>復習の間隔</h2>
-      <p class="note">覚えた日 → 1日後 → 3日後 → 7日後 → 14日後 → 30日後。間違えた単語は「1日後」からやり直します。30日後の復習で正解すると「完全に覚えた」になります。</p>
+      <p class="note">覚えた日 → 1日後 → 3日後 → 7日後 → 14日後 → 30日後。間違えた単語は、その日のうちに正解するまで出題し、正解した時点で「1日後」からやり直します。新しい単語も、正解するまでは学習済みに登録しません。30日後の復習で正解すると「完全に覚えた」になります。</p>
     </div>
     <div class="card">
       <h2>記録のリセット</h2>
@@ -138,6 +146,6 @@
   </section>
 </main>
 
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>
