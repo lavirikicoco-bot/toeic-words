@@ -196,12 +196,8 @@ function startSession() {
   const news = nextNewWords(newQuota(due.length, t));
   // 復習 → 新しい単語（紹介→テスト）の順
   queue = due.map(i => ({ i, type: 'rev', first: true }));
-  // 新しい単語は5語ずつ：まとめて紹介 → 順番を混ぜてテスト
-  for (let k = 0; k < news.length; k += 5) {
-    const chunk = news.slice(k, k + 5);
-    chunk.forEach(i => queue.push({ i, type: 'intro' }));
-    shuffle(chunk.slice()).forEach(i => queue.push({ i, type: 'new', first: true }));
-  }
+  // 新しい単語も最初から4択で出題（答えは選んだあとに表示）
+  news.forEach(i => queue.push({ i, type: 'new', first: true }));
   session = { t, total: due.length + news.length, done: 0, newDone: 0, revDone: 0, ok1: 0, tot: 0 };
   $('doneCard').classList.add('hidden');
   show('study');
@@ -209,22 +205,13 @@ function startSession() {
 }
 function nextItem() {
   cur = queue.shift();
-  $('introCard').classList.add('hidden');
   $('quizCard').classList.add('hidden');
   if (!cur) return finish();
   $('studyProgress').textContent = `${session.done} / ${session.total}`;
   const w = WORDS[cur.i];
-  if (cur.type === 'intro') {
-    $('introTag').textContent = w.l === '基礎' ? '新しい単語・基礎' : '新しい単語・TOEIC頻出';
-    $('introWord').textContent = w.w;
-    $('introMeaning').textContent = w.m;
-    $('introDetail').textContent = (w.p ? `[${posJa(w.p)}] ` : '') + w.d;
-    $('introCard').classList.remove('hidden');
-    return;
-  }
   const tag = $('quizTag');
-  tag.textContent = cur.type === 'new' ? '新しい単語のテスト' : (cur.first ? '復習' : 'もう一度');
-  tag.classList.toggle('new', cur.type === 'new');
+  tag.textContent = cur.type === 'new' ? (cur.first ? '新しい単語' : 'もう一度') : (cur.first ? '復習' : 'もう一度');
+  tag.classList.toggle('new', cur.type === 'new' && cur.first);
   $('quizWord').textContent = w.w;
   const ch = pickChoices(cur.i);
   $('choices').innerHTML = '';
@@ -282,7 +269,6 @@ function finish() {
   $('doneCard').classList.remove('hidden');
 }
 $('startBtn').addEventListener('click', startSession);
-$('introNext').addEventListener('click', nextItem);
 $('nextBtn').addEventListener('click', nextItem);
 $('doneHome').addEventListener('click', () => show('home'));
 $('quitBtn').addEventListener('click', () => {
