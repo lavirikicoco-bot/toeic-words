@@ -9,14 +9,15 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 <header class="top">
-  <h1>TOEIC 単語</h1>
+  <h1>TOEIC 単語・文法</h1>
   <nav>
     <button data-view="home" class="nav on">ホーム</button>
     <button data-view="list" class="nav">単語一覧</button>
+    <button data-view="grammar" class="nav">文法</button>
     <button data-view="settings" class="nav">設定</button>
   </nav>
 </header>
@@ -35,7 +36,14 @@
     </div>
 
     <div class="card">
-      <h2>進み具合</h2>
+      <h2>文法</h2>
+      <p class="row"><span>今日の文法の復習</span><b><span id="homeGDue">0</span>問</b></p>
+      <p class="note" id="homeGNote"></p>
+      <button class="ghost wide" id="homeGrammarBtn" style="margin-top:10px">文法へ</button>
+    </div>
+
+    <div class="card">
+      <h2>単語の進み具合</h2>
       <div class="progress"><div id="progBar"></div></div>
       <p class="row"><span>学習済み</span><b id="learned">0 / 0</b></p>
       <p class="row"><span>完全に覚えた（30日後の復習まで正解）</span><b id="mastered">0</b></p>
@@ -73,9 +81,9 @@
     </div>
 
     <div class="card hidden" id="doneCard">
-      <h2>今日の学習は完了です</h2>
-      <p class="row"><span>新しく覚えた単語</span><b id="doneNew">0</b></p>
-      <p class="row"><span>復習した単語</span><b id="doneRev">0</b></p>
+      <h2 id="doneTitle">今日の学習は完了です</h2>
+      <p class="row"><span id="doneNewLabel">新しく覚えた単語</span><b id="doneNew">0</b></p>
+      <p class="row"><span id="doneRevLabel">復習した単語</span><b id="doneRev">0</b></p>
       <p class="row"><span>1回目で正解した割合</span><b id="doneRate">-</b></p>
       <button class="primary big" id="doneHome">ホームへ</button>
     </div>
@@ -103,6 +111,30 @@
     </div>
     <ul class="wordlist" id="wordlist"></ul>
     <button class="ghost wide hidden" id="moreBtn">もっと表示</button>
+  </section>
+
+  <!-- 文法 -->
+  <section id="grammar" class="view hidden">
+    <div class="card">
+      <h2>文法の復習</h2>
+      <p class="row"><span>今日の復習</span><b><span id="gDue">0</span>問</b></p>
+      <button class="primary big" id="gReviewBtn">復習をはじめる</button>
+      <button class="ghost wide" id="gMixBtn" style="margin-top:10px">Part 5 ミックス（ランダム10問）</button>
+      <p class="note">まちがえた問題は、正解するまでその場でくり返し出題します。正解した問題は 1・3・7・14・30日後に復習として出ます。</p>
+    </div>
+    <div id="gList"></div>
+  </section>
+
+  <!-- 文法の項目 -->
+  <section id="topic" class="view hidden">
+    <button class="ghost" id="tpBack" style="margin-bottom:10px">← 文法の一覧</button>
+    <div class="card">
+      <div class="tag" id="tpGroup"></div>
+      <h2 class="tp-title" id="tpTitle"></h2>
+      <div class="tp-explain" id="tpExplain"></div>
+      <p class="note" id="tpStats"></p>
+      <button class="primary big" id="tpStart">この項目を解く</button>
+    </div>
   </section>
 
   <!-- 設定 -->
@@ -136,16 +168,16 @@
     </div>
     <div class="card">
       <h2>記録のリセット</h2>
-      <p class="note">記録はこのブラウザの中にだけ保存されています。ブラウザのデータを消すと記録も消えます。</p>
+      <p class="note">単語と文法の記録はこのブラウザの中にだけ保存されています。ブラウザのデータを消すと記録も消えます。</p>
       <button class="danger" id="resetBtn">すべての記録を消す</button>
     </div>
     <div class="card credits">
       <h2>単語データについて</h2>
-      <p class="note">英単語: New General Service List（Browne, Culligan &amp; Phillips）、TOEIC Service List 1.2（Browne &amp; Culligan）。CC BY-SA 4.0。<br>日本語訳: EJDict-hand（パブリックドメイン）をもとに自動で整形。一部は手作業で追加。訳が不自然な単語もあります。</p>
+      <p class="note">英単語: New General Service List（Browne, Culligan &amp; Phillips）、TOEIC Service List 1.2（Browne &amp; Culligan）。CC BY-SA 4.0。<br>日本語訳: EJDict-hand（パブリックドメイン）をもとに自動で整形。一部は手作業で追加。訳が不自然な単語もあります。<br>文法問題: このアプリ用に作成したオリジナル問題です（TOEICの公式問題ではありません）。</p>
     </div>
   </section>
 </main>
 
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

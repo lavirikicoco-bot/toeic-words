@@ -3,7 +3,7 @@
 const INTERVALS = [1, 3, 7, 14, 30];   // 覚えた日からの日数
 const KEY = 'toeic-srs-v1';
 const PAGE = 100;
-const VERSION = 4; // 更新したら index.html の ?v= と合わせて上げる
+const VERSION = 5; // 更新したら index.html の ?v= と合わせて上げる
 
 // ===== 日付 =====
 function dayNum(date = new Date()) {
@@ -17,7 +17,7 @@ function dayLabel(n, withWeek = true) {
 
 // ===== 保存 =====
 function defaultState() {
-  return { v: 1, settings: { dailyNew: 20, startFrom: '基礎', autoThrottle: true, redSheet: true }, cards: {}, log: {} };
+  return { v: 1, settings: { dailyNew: 20, startFrom: '基礎', autoThrottle: true, redSheet: true }, cards: {}, log: {}, gcards: {}, gstat: {} };
 }
 function load() {
   try {
@@ -25,7 +25,7 @@ function load() {
     if (!raw) return defaultState();
     const s = JSON.parse(raw);
     const d = defaultState();
-    return { ...d, ...s, settings: { ...d.settings, ...(s.settings || {}) }, cards: s.cards || {}, log: s.log || {} };
+    return { ...d, ...s, settings: { ...d.settings, ...(s.settings || {}) }, cards: s.cards || {}, log: s.log || {}, gcards: s.gcards || {}, gstat: s.gstat || {} };
   } catch (e) { return defaultState(); }
 }
 let saveFailed = false;
@@ -39,10 +39,14 @@ function save() {
 
 let S = load();
 let WORDS = [];
+let GRAMMAR = [];          // 文法の項目（grammar.json）
+const GQ = {};             // 問題ID → { q, topic }
 
 // ===== 計算 =====
 function todayLog(t = dayNum()) {
-  return S.log[t] || (S.log[t] = { n: 0, r: 0, ok1: 0, tot: 0 });
+  const l = S.log[t] || (S.log[t] = { n: 0, r: 0, ok1: 0, tot: 0 });
+  if (l.gtot === undefined) { l.gn = 0; l.gr = 0; l.gok1 = 0; l.gtot = 0; }
+  return l;
 }
 function dueList(t = dayNum()) {
   const out = [];
@@ -80,25 +84,29 @@ function currentStage() {
 }
 function streak() {
   let t = dayNum();
-  if (!(S.log[t] && S.log[t].tot > 0)) t -= 1;
+  const active = d => S.log[d] && (S.log[d].tot > 0 || S.log[d].gtot > 0);
+  if (!active(t)) t -= 1;
   let n = 0;
-  while (S.log[t] && S.log[t].tot > 0) { n++; t--; }
+  while (active(t)) { n++; t--; }
   return n;
 }
 
-// 正解・不正解のときの予定更新
-// 新しい単語・復習の単語とも、正解するまでは「学習済み」にしない（次の予定も決めない）
-function applyResult(i, correct, t = dayNum(), misses = 0) {
-  let c = S.cards[i];
-  if (!c) { // 新しい単語：正解したときに初めて登録
+// 正解・不正解のときの予定更新（単語・文法で共通）
+// 新しいもの・復習とも、正解するまでは「学習済み」にしない（次の予定も決めない）
+// practice=true は「項目を解く」「ミックス」で、復習日前の問題を解いたとき：正解なら予定は変えない
+function srsUpdate(store, key, correct, t, misses = 0, practice = false) {
+  let c = store[key];
+  if (!c) { // 新しいもの：正解したときに初めて登録
     if (!correct) return null;
-    return (S.cards[i] = { s: 0, b: t, due: t + INTERVALS[0], lapses: misses });
+    return (store[key] = { s: 0, b: t, due: t + INTERVALS[0], lapses: misses });
   }
-  if (c.p) { // 今日まちがえて、まだ正解していない復習の単語
+  if (c.p) { // 今日まちがえて、まだ正解していない
     if (correct) { c.due = t + INTERVALS[0]; delete c.p; }
     return c;
   }
+  const notDue = c.m || c.due > t;
   if (correct) {
+    if (practice && notDue) return c;
     c.s += 1;
     if (c.s >= INTERVALS.length) { c.m = true; c.due = null; return c; }
     let due = c.b + INTERVALS[c.s];
@@ -110,6 +118,16 @@ function applyResult(i, correct, t = dayNum(), misses = 0) {
     c.s = 0; c.b = t; c.due = t; c.p = 1; c.lapses = (c.lapses || 0) + 1; delete c.m;
   }
   return c;
+}
+function applyResult(i, correct, t = dayNum(), misses = 0) { return srsUpdate(S.cards, i, correct, t, misses); }
+function gDueList(t = dayNum()) {
+  const out = [];
+  for (const k in S.gcards) {
+    const c = S.gcards[k];
+    if (!c.m && c.due <= t && GQ[k]) out.push(k);
+  }
+  out.sort((a, b) => S.gcards[a].due - S.gcards[b].due);
+  return out;
 }
 
 // ===== 4択の選択肢 =====
@@ -144,10 +162,12 @@ function show(view) {
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('hidden', v.id !== view));
   document.querySelectorAll('.nav').forEach(b => b.classList.toggle('on', b.dataset.view === view));
   document.querySelector('.top nav').classList.toggle('hidden', view === 'study');
+  if (view === 'topic') document.querySelector('.nav[data-view=grammar]').classList.add('on');
   window.scrollTo(0, 0);
   if (view === 'home') renderHome();
   if (view === 'list') renderList(true);
   if (view === 'settings') renderSettings();
+  if (view === 'grammar') renderGrammar();
 }
 document.querySelectorAll('.nav').forEach(b => b.addEventListener('click', () => show(b.dataset.view)));
 
@@ -170,6 +190,9 @@ function renderHome() {
   }
   $('todayNote').textContent = note;
   $('startBtn').disabled = due.length + avail === 0;
+  const gd = gDueList(t).length;
+  $('homeGDue').textContent = gd;
+  $('homeGNote').textContent = gd ? '今日の文法の復習があります。' : '今日の文法の復習はありません。新しい項目を進めましょう。';
 
   const learned = Object.keys(S.cards).length;
   const mastered = Object.values(S.cards).filter(c => c.m).length;
@@ -204,7 +227,7 @@ function startSession() {
   queue = due.map(i => ({ i, type: 'rev', first: true }));
   // 新しい単語も最初から4択で出題（答えは選んだあとに表示）
   news.forEach(i => queue.push({ i, type: 'new', first: true }));
-  session = { t, total: due.length + news.length, done: 0, newDone: 0, revDone: 0, ok1: 0, tot: 0 };
+  session = { kind: 'word', t, total: due.length + news.length, done: 0, newDone: 0, revDone: 0, ok1: 0, tot: 0 };
   $('doneCard').classList.add('hidden');
   show('study');
   nextItem();
@@ -214,6 +237,8 @@ function nextItem() {
   $('quizCard').classList.add('hidden');
   if (!cur) return finish();
   $('studyProgress').textContent = `${session.done} / ${session.total}`;
+  if (cur.kind === 'g') return renderGrammarQ();
+  $('quizWord').classList.remove('sentence');
   const w = WORDS[cur.i];
   const tag = $('quizTag');
   tag.textContent = cur.type === 'new' ? (cur.first ? '新しい単語' : 'もう一度') : (cur.first ? '復習' : 'もう一度');
@@ -276,6 +301,10 @@ function answer(j, btn) {
   $('nextBtn').focus({ preventScroll: true });
 }
 function finish() {
+  const g = session.kind === 'g';
+  $('doneTitle').textContent = g ? 'おつかれさまでした' : '今日の学習は完了です';
+  $('doneNewLabel').textContent = g ? '初めて正解した問題' : '新しく覚えた単語';
+  $('doneRevLabel').textContent = g ? '解き直した問題' : '復習した単語';
   $('doneNew').textContent = session.newDone;
   $('doneRev').textContent = session.revDone;
   $('doneRate').textContent = session.tot ? Math.round(session.ok1 / session.tot * 100) + '%' : '-';
@@ -284,9 +313,9 @@ function finish() {
 }
 $('startBtn').addEventListener('click', startSession);
 $('nextBtn').addEventListener('click', nextItem);
-$('doneHome').addEventListener('click', () => show('home'));
+$('doneHome').addEventListener('click', () => show(session && session.kind === 'g' ? 'grammar' : 'home'));
 $('quitBtn').addEventListener('click', () => {
-  if (confirm('中断しますか？ここまでの記録は保存されています。')) show('home');
+  if (confirm('中断しますか？ここまでの記録は保存されています。')) show(session && session.kind === 'g' ? 'grammar' : 'home');
 });
 
 // ===== 単語一覧 =====
@@ -363,9 +392,147 @@ $('resetBtn').addEventListener('click', () => {
   }
 });
 
+// ===== 文法 =====
+const esc = x => String(x).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+function topicStats(tp) {
+  let done = 0, tries = 0, ok = 0, mastered = 0, weak = 0;
+  for (const q of tp.qs) {
+    const c = S.gcards[q.id];
+    if (c) { done++; if (c.m) mastered++; if (c.lapses >= 2) weak++; }
+    const st = S.gstat[q.id];
+    if (st) { tries += st[0]; ok += st[1]; }
+  }
+  return { done, mastered, weak, rate: tries ? Math.round(ok / tries * 100) : null };
+}
+function renderGrammar() {
+  const t = dayNum();
+  const due = gDueList(t);
+  $('gDue').textContent = due.length;
+  $('gReviewBtn').disabled = due.length === 0;
+  const groups = [['basic', '基礎文法'], ['p5', 'Part 5 タイプ別']];
+  let html = '';
+  for (const [cat, label] of groups) {
+    const tps = GRAMMAR.filter(x => x.cat === cat);
+    const ready = tps.reduce((a, x) => a + x.qs.length, 0), plan = tps.reduce((a, x) => a + x.n, 0);
+    html += `<h3 class="ghead">${label}<small>公開中 ${ready}問 / 予定 ${plan}問</small></h3>`;
+    let lastGroup = '';
+    for (const tp of tps) {
+      if (cat === 'basic' && tp.group !== lastGroup) { html += `<div class="gsub">${esc(tp.group)}</div>`; lastGroup = tp.group; }
+      if (!tp.qs.length) {
+        html += `<div class="gitem off"><div><div class="gt">${esc(tp.title)}</div><div class="gm">${tp.n}問・準備中</div></div></div>`;
+        continue;
+      }
+      const st = topicStats(tp);
+      const more = tp.qs.length < tp.n ? `（予定${tp.n}問）` : '';
+      const rate = st.rate === null ? '' : `・1回目の正答率 ${st.rate}%`;
+      html += `<button class="gitem" data-topic="${tp.id}"><div><div class="gt">${esc(tp.title)}</div>` +
+        `<div class="gm">${tp.qs.length}問${more}・正解済み ${st.done}${rate}</div></div><span class="arrow">›</span></button>`;
+    }
+  }
+  $('gList').innerHTML = html;
+  $('gList').querySelectorAll('[data-topic]').forEach(b => b.addEventListener('click', () => openTopic(b.dataset.topic)));
+}
+let curTopic = null;
+function openTopic(id) {
+  curTopic = GRAMMAR.find(x => x.id === id);
+  const st = topicStats(curTopic);
+  $('tpTitle').textContent = curTopic.title;
+  $('tpGroup').textContent = curTopic.cat === 'p5' ? 'Part 5 タイプ別' : `基礎文法・${curTopic.group}`;
+  $('tpExplain').innerHTML = curTopic.explain; // 自前の解説（HTMLを含む）
+  $('tpStats').textContent = `${curTopic.qs.length}問のうち正解済み ${st.done}問・完全に覚えた ${st.mastered}問` + (st.rate === null ? '' : `・1回目の正答率 ${st.rate}%`);
+  $('tpStart').textContent = `この項目を解く（${curTopic.qs.length}問）`;
+  show('topic');
+}
+function gType(qid, t) {
+  const c = S.gcards[qid];
+  if (!c) return 'new';
+  return (!c.m && c.due <= t) ? 'rev' : 'prac';
+}
+function startGrammarSession(qids) {
+  const t = dayNum();
+  queue = qids.map(qid => ({ kind: 'g', qid, type: gType(qid, t), first: true }));
+  session = { kind: 'g', t, total: queue.length, done: 0, newDone: 0, revDone: 0, ok1: 0, tot: 0 };
+  $('doneCard').classList.add('hidden');
+  show('study');
+  nextItem();
+}
+$('tpStart').addEventListener('click', () => startGrammarSession(shuffle(curTopic.qs.map(q => q.id))));
+$('tpBack').addEventListener('click', () => show('grammar'));
+$('gReviewBtn').addEventListener('click', () => startGrammarSession(gDueList()));
+$('gMixBtn').addEventListener('click', () => {
+  const all = GRAMMAR.filter(x => x.cat === 'p5').flatMap(x => x.qs.map(q => q.id));
+  startGrammarSession(shuffle(all).slice(0, 10));
+});
+function renderGrammarQ() {
+  const { q, topic } = GQ[cur.qid];
+  const tag = $('quizTag');
+  const kindTxt = !cur.first ? 'もう一度' : { new: '新しい問題', rev: '復習', prac: '練習' }[cur.type];
+  tag.textContent = `${topic.title}・${kindTxt}`;
+  tag.classList.toggle('new', cur.type === 'new' && cur.first);
+  $('quizWord').classList.add('sentence');
+  $('quizWord').innerHTML = esc(q.q).replace('-------', '<span class="blank">　　　　</span>');
+  $('choices').innerHTML = '';
+  q.c.forEach((txt, k) => {
+    const b = document.createElement('button');
+    b.className = 'choice en';
+    b.textContent = `(${'ABCD'[k]}) ${txt}`;
+    b.dataset.k = k;
+    b.addEventListener('click', () => answerGrammar(k, b));
+    $('choices').appendChild(b);
+  });
+  $('feedback').classList.add('hidden');
+  setSheet(S.settings.redSheet);
+  $('quizCard').classList.remove('hidden');
+}
+function answerGrammar(k, btn) {
+  const { q } = GQ[cur.qid];
+  const correct = k === q.a;
+  const t = session.t;
+  document.querySelectorAll('.choice').forEach(b => {
+    b.disabled = true;
+    if (+b.dataset.k === q.a) b.classList.add('ok');
+  });
+  if (!correct) btn.classList.add('ng');
+  const log = todayLog(t);
+  if (cur.first) {
+    log.gtot++; session.tot++;
+    const st = S.gstat[cur.qid] || (S.gstat[cur.qid] = [0, 0]);
+    st[0]++;
+    if (correct) { log.gok1++; session.ok1++; st[1]++; }
+  }
+  if (!correct) cur.misses = (cur.misses || 0) + 1;
+  const wasNew = !(cur.qid in S.gcards);
+  const c = srsUpdate(S.gcards, cur.qid, correct, t, cur.misses || 0, cur.type === 'prac');
+  let nextText;
+  if (correct) {
+    if (wasNew) { log.gn++; session.newDone++; } else { log.gr++; session.revDone++; }
+    session.done++;
+    nextText = c.m ? 'この問題は完全に覚えました。'
+      : `次の復習：${dayLabel(c.due)}（${c.due - t}日後）`;
+  } else {
+    queue.push({ kind: 'g', qid: cur.qid, type: cur.type, first: false, misses: cur.misses });
+    nextText = '正解するまで「正解済み」には登録しません。このあともう一度出題します。';
+  }
+  save();
+  $('fbTitle').textContent = correct ? '正解' : `不正解　正解は (${'ABCD'[q.a]}) ${q.c[q.a]}`;
+  $('fbTitle').className = 'fb-title ' + (correct ? 'ok' : 'ng');
+  const full = esc(q.q).replace('-------', `<b class="ans">${esc(q.c[q.a])}</b>`);
+  $('fbDetail').innerHTML = `<div class="fb-en">${full}</div><div class="fb-ja">${esc(q.t)}</div><div class="fb-ex">${esc(q.e)}</div>`;
+  $('fbNext').textContent = nextText;
+  $('feedback').classList.remove('hidden');
+  $('studyProgress').textContent = `${session.done} / ${session.total}`;
+  $('nextBtn').focus({ preventScroll: true });
+}
+$('homeGrammarBtn').addEventListener('click', () => show('grammar'));
+
 // ===== 起動 =====
-fetch('words.json?v=' + VERSION).then(r => r.json()).then(data => {
-  WORDS = data;
+Promise.all([
+  fetch('words.json?v=' + VERSION).then(r => r.json()),
+  fetch('grammar.json?v=' + VERSION).then(r => r.json()),
+]).then(([words, grammar]) => {
+  WORDS = words;
+  GRAMMAR = grammar;
+  for (const tp of GRAMMAR) for (const q of tp.qs) GQ[q.id] = { q, topic: tp };
   show('home');
 }).catch(() => {
   $('todayNote').textContent = '単語データを読み込めませんでした。通信を確認して再読み込みしてください。';

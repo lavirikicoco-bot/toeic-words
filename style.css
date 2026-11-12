@@ -80,3 +80,22 @@ select,input[type=search]{width:100%;font:inherit;font-size:16px;padding:10px;bo
 .redsheet span{font-size:18px;font-weight:800;letter-spacing:.1em}
 .redsheet small{font-size:13px;opacity:.95}
 .redsheet.lifted{transform:translateY(60%);opacity:0;pointer-events:none}
+
+.nav{font-size:13px}
+.word.sentence{font-size:19px;font-weight:600;line-height:1.6;text-align:left;margin:16px 0 4px}
+.blank{display:inline-block;min-width:4.5em;border-bottom:2px solid var(--ink);margin:0 2px}
+.choice.en{font-family:inherit}
+.fb-en{font-size:15px;color:var(--ink);margin-bottom:6px;line-height:1.6}
+.fb-en .ans{color:var(--ok);text-decoration:underline}
+.fb-ja{font-size:13px;color:var(--sub);margin-bottom:8px}
+.fb-ex{font-size:14px;color:var(--ink);background:var(--soft);border-radius:8px;padding:10px;line-height:1.7}
+.ghead{font-size:15px;margin:18px 4px 8px;display:flex;justify-content:space-between;align-items:baseline}
+.ghead small{font-size:12px;color:var(--sub);font-weight:400}
+.gsub{font-size:12px;color:var(--sub);margin:12px 4px 6px;font-weight:700}
+.gitem{width:100%;display:flex;justify-content:space-between;align-items:center;text-align:left;background:#fff;border:0;border-radius:10px;padding:12px;margin-bottom:6px;color:var(--ink);box-shadow:0 1px 2px rgba(20,30,50,.05)}
+.gitem.off{opacity:.55}
+.gitem .gt{font-weight:700;font-size:15px}
+.gitem .gm{font-size:12px;color:var(--sub);margin-top:3px}
+.gitem .arrow{font-size:22px;color:var(--sub)}
+.tp-title{font-size:20px;margin:10px 0}
+.tp-explain{font-size:14px;line-height:1.8;background:var(--soft);border-radius:10px;padding:12px}
