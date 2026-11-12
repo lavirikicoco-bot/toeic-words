@@ -3,7 +3,7 @@
 const INTERVALS = [1, 3, 7, 14, 30];   // 覚えた日からの日数
 const KEY = 'toeic-srs-v1';
 const PAGE = 100;
-const VERSION = 5; // 更新したら index.html の ?v= と合わせて上げる
+const VERSION = 6; // 更新したら index.html の ?v= と合わせて上げる
 
 // ===== 日付 =====
 function dayNum(date = new Date()) {
@@ -414,7 +414,7 @@ function renderGrammar() {
   for (const [cat, label] of groups) {
     const tps = GRAMMAR.filter(x => x.cat === cat);
     const ready = tps.reduce((a, x) => a + x.qs.length, 0), plan = tps.reduce((a, x) => a + x.n, 0);
-    html += `<h3 class="ghead">${label}<small>公開中 ${ready}問 / 予定 ${plan}問</small></h3>`;
+    html += `<h3 class="ghead">${label}<small>${ready === plan ? `${ready}問` : `公開中 ${ready}問 / 予定 ${plan}問`}</small></h3>`;
     let lastGroup = '';
     for (const tp of tps) {
       if (cat === 'basic' && tp.group !== lastGroup) { html += `<div class="gsub">${esc(tp.group)}</div>`; lastGroup = tp.group; }
