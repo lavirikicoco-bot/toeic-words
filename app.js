@@ -3,6 +3,7 @@
 const INTERVALS = [1, 3, 7, 14, 30];   // 覚えた日からの日数
 const KEY = 'toeic-srs-v1';
 const PAGE = 100;
+const VERSION = 3; // 更新したら index.html の ?v= と合わせて上げる
 
 // ===== 日付 =====
 function dayNum(date = new Date()) {
@@ -347,7 +348,7 @@ $('resetBtn').addEventListener('click', () => {
 });
 
 // ===== 起動 =====
-fetch('words.json').then(r => r.json()).then(data => {
+fetch('words.json?v=' + VERSION).then(r => r.json()).then(data => {
   WORDS = data;
   show('home');
 }).catch(() => {
