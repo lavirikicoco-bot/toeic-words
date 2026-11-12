@@ -1,5 +1,5 @@
-const CACHE = 'toeic-words-v6';
-const FILES = ['./', 'index.html', 'style.css?v=6', 'app.js?v=6', 'words.json?v=6', 'grammar.json?v=6', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png'];
+const CACHE = 'toeic-words-v7';
+const FILES = ['./', 'index.html', 'style.css?v=7', 'app.js?v=7', 'reading.js?v=7', 'reading.json?v=7', 'words.json?v=7', 'grammar.json?v=7', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
 });

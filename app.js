@@ -3,7 +3,7 @@
 const INTERVALS = [1, 3, 7, 14, 30];   // 覚えた日からの日数
 const KEY = 'toeic-srs-v1';
 const PAGE = 100;
-const VERSION = 6; // 更新したら index.html の ?v= と合わせて上げる
+const VERSION = 7; // 更新したら index.html の ?v= と合わせて上げる
 
 // ===== 日付 =====
 function dayNum(date = new Date()) {
@@ -72,7 +72,12 @@ function newQuota(dueCount, t = dayNum()) {
 function nextNewWords(k) {
   const out = [];
   if (k <= 0) return out;
+  // 長文から追加した単語を先に出す
+  for (const i of (S.wprio || [])) {
+    if (!(i in S.cards) && !out.includes(i)) { out.push(i); if (out.length >= k) return out; }
+  }
   for (const i of orderedIndices()) {
+    if (out.includes(i)) continue;
     if (!(i in S.cards)) { out.push(i); if (out.length >= k) break; }
   }
   return out;
@@ -84,7 +89,7 @@ function currentStage() {
 }
 function streak() {
   let t = dayNum();
-  const active = d => S.log[d] && (S.log[d].tot > 0 || S.log[d].gtot > 0);
+  const active = d => S.log[d] && (S.log[d].tot > 0 || S.log[d].gtot > 0 || S.log[d].rdocs > 0);
   if (!active(t)) t -= 1;
   let n = 0;
   while (active(t)) { n++; t--; }
@@ -161,13 +166,14 @@ const $ = id => document.getElementById(id);
 function show(view) {
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('hidden', v.id !== view));
   document.querySelectorAll('.nav').forEach(b => b.classList.toggle('on', b.dataset.view === view));
-  document.querySelector('.top nav').classList.toggle('hidden', view === 'study');
+  document.querySelector('.top nav').classList.toggle('hidden', view === 'study' || view === 'rdoc');
   if (view === 'topic') document.querySelector('.nav[data-view=grammar]').classList.add('on');
   window.scrollTo(0, 0);
   if (view === 'home') renderHome();
   if (view === 'list') renderList(true);
   if (view === 'settings') renderSettings();
   if (view === 'grammar') renderGrammar();
+  if (view === 'reading') renderReading();
 }
 document.querySelectorAll('.nav').forEach(b => b.addEventListener('click', () => show(b.dataset.view)));
 
@@ -193,6 +199,7 @@ function renderHome() {
   const gd = gDueList(t).length;
   $('homeGDue').textContent = gd;
   $('homeGNote').textContent = gd ? '今日の文法の復習があります。' : '今日の文法の復習はありません。新しい項目を進めましょう。';
+  if (READ.docs.length) renderHomeReading();
 
   const learned = Object.keys(S.cards).length;
   const mastered = Object.values(S.cards).filter(c => c.m).length;
@@ -529,7 +536,9 @@ $('homeGrammarBtn').addEventListener('click', () => show('grammar'));
 Promise.all([
   fetch('words.json?v=' + VERSION).then(r => r.json()),
   fetch('grammar.json?v=' + VERSION).then(r => r.json()),
-]).then(([words, grammar]) => {
+  fetch('reading.json?v=' + VERSION).then(r => r.json()),
+]).then(([words, grammar, reading]) => {
+  initReading(reading);
   WORDS = words;
   GRAMMAR = grammar;
   for (const tp of GRAMMAR) for (const q of tp.qs) GQ[q.id] = { q, topic: tp };

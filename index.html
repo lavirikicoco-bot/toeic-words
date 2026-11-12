@@ -9,7 +9,7 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
 <header class="top">
@@ -18,6 +18,7 @@
     <button data-view="home" class="nav on">ホーム</button>
     <button data-view="list" class="nav">単語一覧</button>
     <button data-view="grammar" class="nav">文法</button>
+    <button data-view="reading" class="nav">長文</button>
     <button data-view="settings" class="nav">設定</button>
   </nav>
 </header>
@@ -40,6 +41,12 @@
       <p class="row"><span>今日の文法の復習</span><b><span id="homeGDue">0</span>問</b></p>
       <p class="note" id="homeGNote"></p>
       <button class="ghost wide" id="homeGrammarBtn" style="margin-top:10px">文法へ</button>
+    </div>
+
+    <div class="card">
+      <h2>長文</h2>
+      <p class="row"><span>今日の長文の復習</span><b><span id="homeRDue">0</span>文書</b></p>
+      <button class="ghost wide" id="homeReadBtn" style="margin-top:10px">長文へ</button>
     </div>
 
     <div class="card">
@@ -137,6 +144,67 @@
     </div>
   </section>
 
+  <!-- 長文 -->
+  <section id="reading" class="view hidden">
+    <div class="card">
+      <h2>長文の練習</h2>
+      <p class="row"><span>今日の復習</span><b><span id="rDue">0</span>文書</b></p>
+      <button class="primary big" id="rReviewBtn">復習をはじめる</button>
+      <button class="ghost wide" id="rRecBtn" style="margin-top:10px">おすすめ</button>
+      <p class="note">1文書 10〜15分。時間を計って読む → 設問 → 読み直し → もう一度読む、の順に進みます。</p>
+    </div>
+    <div class="card">
+      <h2>4つの力の正答率（1回目）</h2>
+      <div class="powers" id="rPowers"></div>
+    </div>
+    <div id="rLevels"></div>
+  </section>
+
+  <!-- 長文の練習 -->
+  <section id="rdoc" class="view hidden">
+    <div class="studybar">
+      <button class="ghost" id="rQuit">← 中断</button>
+      <span id="rPhase"></span>
+    </div>
+    <div class="card hidden" id="rIntro">
+      <h2 class="tp-title" id="rIntroTitle"></h2>
+      <p class="note" id="rIntroMeta"></p>
+      <p class="note" id="rIntroNote"></p>
+      <button class="primary big" id="rIntroBtn">読みはじめる</button>
+      <button class="ghost wide hidden" id="rSkip2" style="margin-top:10px">今回はもう一度読まずに終わる</button>
+    </div>
+    <div class="card passage hidden" id="rPassage"></div>
+    <div class="readdone hidden" id="rReadDone"><button class="primary big" id="rReadDoneBtn">読めた</button></div>
+    <div class="card qcard hidden" id="rQCard">
+      <div class="tag" id="rQTag"></div>
+      <div class="rq-text" id="rQText"></div>
+      <p class="note hidden" id="rScanHint">上の文章の中で、答えが書いてある文をタップしてください。</p>
+      <div class="choicewrap" id="rChoiceWrap">
+        <div class="choices" id="rChoices"></div>
+        <button class="redsheet" id="rRedsheet" type="button"><span>赤シート</span><small>答えを考えてから、タップでめくる</small></button>
+      </div>
+      <div class="feedback hidden" id="rFeedback">
+        <div class="fb-title" id="rFbTitle"></div>
+        <div class="detail" id="rFbDetail"></div>
+        <div class="fb-next" id="rFbNext"></div>
+        <button class="primary big" id="rNextBtn">次へ</button>
+      </div>
+    </div>
+    <div class="card hidden" id="rReview">
+      <h2>読み直し</h2>
+      <p class="note">色の付いた文が設問の根拠です。各文の「訳・構造」で訳・意味のかたまり・文の動詞を確認できます。知らない単語はタップすると単語アプリに追加できます。</p>
+      <h3 class="sub">言い換えの対応</h3>
+      <ul class="paralist" id="rParaList"></ul>
+      <button class="primary big" id="rToReread">音読してから、もう一度読む</button>
+    </div>
+    <div class="card hidden" id="rDone">
+      <h2>結果</h2>
+      <div id="rDoneBody"></div>
+      <button class="primary big" id="rDoneBack">長文の一覧へ</button>
+    </div>
+    <div class="wordpop hidden" id="rWordPop"></div>
+  </section>
+
   <!-- 設定 -->
   <section id="settings" class="view hidden">
     <div class="card">
@@ -173,11 +241,12 @@
     </div>
     <div class="card credits">
       <h2>単語データについて</h2>
-      <p class="note">英単語: New General Service List（Browne, Culligan &amp; Phillips）、TOEIC Service List 1.2（Browne &amp; Culligan）。CC BY-SA 4.0。<br>日本語訳: EJDict-hand（パブリックドメイン）をもとに自動で整形。一部は手作業で追加。訳が不自然な単語もあります。<br>文法問題: このアプリ用に作成したオリジナル問題です（TOEICの公式問題ではありません）。</p>
+      <p class="note">英単語: New General Service List（Browne, Culligan &amp; Phillips）、TOEIC Service List 1.2（Browne &amp; Culligan）。CC BY-SA 4.0。<br>日本語訳: EJDict-hand（パブリックドメイン）をもとに自動で整形。一部は手作業で追加。訳が不自然な単語もあります。<br>文法問題・長文: このアプリ用に作成したオリジナルです（TOEICの公式問題ではありません）。</p>
     </div>
   </section>
 </main>
 
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
+<script src="reading.js?v=7"></script>
 </body>
 </html>
