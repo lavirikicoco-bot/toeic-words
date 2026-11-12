@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f3a5f">
+<title>TOEIC 単語 忘却曲線トレーナー</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <h1>TOEIC 単語</h1>
+  <nav>
+    <button data-view="home" class="nav on">ホーム</button>
+    <button data-view="list" class="nav">単語一覧</button>
+    <button data-view="settings" class="nav">設定</button>
+  </nav>
+</header>
+
+<main>
+  <!-- ホーム -->
+  <section id="home" class="view">
+    <div class="card today">
+      <div class="date" id="todayLabel"></div>
+      <div class="nums">
+        <div><span id="dueCount">0</span><small>復習</small></div>
+        <div><span id="newCount">0</span><small>新しい単語</small></div>
+      </div>
+      <p class="note" id="todayNote"></p>
+      <button class="primary big" id="startBtn">学習をはじめる</button>
+    </div>
+
+    <div class="card">
+      <h2>進み具合</h2>
+      <div class="progress"><div id="progBar"></div></div>
+      <p class="row"><span>学習済み</span><b id="learned">0 / 0</b></p>
+      <p class="row"><span>完全に覚えた（30日後の復習まで正解）</span><b id="mastered">0</b></p>
+      <p class="row"><span>いまの段階</span><b id="stageLabel">基礎</b></p>
+      <p class="row"><span>連続学習日数</span><b id="streak">0日</b></p>
+    </div>
+
+    <div class="card">
+      <h2>これから7日間の復習予定</h2>
+      <div class="forecast" id="forecast"></div>
+      <p class="note">毎日の新しい単語の数を変えずに続けると、1か月後には1日あたり「新規×6」語ほどで落ち着きます。</p>
+    </div>
+  </section>
+
+  <!-- 学習 -->
+  <section id="study" class="view hidden">
+    <div class="studybar">
+      <button class="ghost" id="quitBtn">← 中断</button>
+      <span id="studyProgress"></span>
+    </div>
+
+    <div class="card qcard" id="introCard">
+      <div class="tag" id="introTag">新しい単語</div>
+      <div class="word" id="introWord"></div>
+      <div class="meaning" id="introMeaning"></div>
+      <div class="detail" id="introDetail"></div>
+      <button class="primary big" id="introNext">覚えた → 次へ</button>
+    </div>
+
+    <div class="card qcard hidden" id="quizCard">
+      <div class="tag" id="quizTag">復習</div>
+      <div class="word" id="quizWord"></div>
+      <div class="choices" id="choices"></div>
+      <div class="feedback hidden" id="feedback">
+        <div class="fb-title" id="fbTitle"></div>
+        <div class="detail" id="fbDetail"></div>
+        <div class="fb-next" id="fbNext"></div>
+        <button class="primary big" id="nextBtn">次へ</button>
+      </div>
+    </div>
+
+    <div class="card hidden" id="doneCard">
+      <h2>今日の学習は完了です</h2>
+      <p class="row"><span>新しく覚えた単語</span><b id="doneNew">0</b></p>
+      <p class="row"><span>復習した単語</span><b id="doneRev">0</b></p>
+      <p class="row"><span>1回目で正解した割合</span><b id="doneRate">-</b></p>
+      <button class="primary big" id="doneHome">ホームへ</button>
+    </div>
+  </section>
+
+  <!-- 単語一覧 -->
+  <section id="list" class="view hidden">
+    <div class="card">
+      <input id="search" type="search" placeholder="英単語か日本語で検索">
+      <div class="filters">
+        <select id="filterLevel">
+          <option value="">すべての段階</option>
+          <option value="基礎">基礎（NGSL）</option>
+          <option value="TOEIC">TOEIC頻出（TSL）</option>
+        </select>
+        <select id="filterStatus">
+          <option value="">すべての状態</option>
+          <option value="new">未学習</option>
+          <option value="learning">復習中</option>
+          <option value="mastered">完全に覚えた</option>
+          <option value="weak">よく間違える</option>
+        </select>
+      </div>
+      <p class="note" id="listCount"></p>
+    </div>
+    <ul class="wordlist" id="wordlist"></ul>
+    <button class="ghost wide hidden" id="moreBtn">もっと表示</button>
+  </section>
+
+  <!-- 設定 -->
+  <section id="settings" class="view hidden">
+    <div class="card">
+      <h2>1日の新しい単語の数</h2>
+      <select id="dailyNew"></select>
+      <p class="note" id="loadEstimate"></p>
+    </div>
+    <div class="card">
+      <h2>どこから始めるか</h2>
+      <select id="startFrom">
+        <option value="基礎">基礎（NGSL 約2800語）→ TOEIC頻出</option>
+        <option value="TOEIC">TOEIC頻出（TSL 1250語）→ 基礎</option>
+      </select>
+      <p class="note">途中で変えても、学習済みの単語の記録はそのまま残ります。</p>
+    </div>
+    <div class="card">
+      <h2>復習が多い日の調整</h2>
+      <label class="check"><input type="checkbox" id="autoThrottle"> 復習が「新規×6」を超えた日は、新しい単語を休む</label>
+      <p class="note">何日か休んで復習がたまったときに、復習を先に片づけられます。</p>
+    </div>
+    <div class="card">
+      <h2>復習の間隔</h2>
+      <p class="note">覚えた日 → 1日後 → 3日後 → 7日後 → 14日後 → 30日後。間違えた単語は「1日後」からやり直します。30日後の復習で正解すると「完全に覚えた」になります。</p>
+    </div>
+    <div class="card">
+      <h2>記録のリセット</h2>
+      <p class="note">記録はこのブラウザの中にだけ保存されています。ブラウザのデータを消すと記録も消えます。</p>
+      <button class="danger" id="resetBtn">すべての記録を消す</button>
+    </div>
+    <div class="card credits">
+      <h2>単語データについて</h2>
+      <p class="note">英単語: New General Service List（Browne, Culligan &amp; Phillips）、TOEIC Service List 1.2（Browne &amp; Culligan）。CC BY-SA 4.0。<br>日本語訳: EJDict-hand（パブリックドメイン）をもとに自動で整形。一部は手作業で追加。訳が不自然な単語もあります。</p>
+    </div>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
